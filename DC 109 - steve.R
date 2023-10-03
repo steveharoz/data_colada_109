@@ -92,6 +92,16 @@ data = data %>%
   )
 
 
+#### non-calculated column in calcchain ####
+
+# does any cell from a non-calculated column appear in calcChain?
+data = data %>% 
+  mutate(
+    .by = row,
+    manipulated = any(!across(order_C:order_K, is.na))
+  )
+
+
 #### mark what's out of order ####
 
 # if the calcChain order is one more than the previous row, it's fine
@@ -106,6 +116,7 @@ data = data %>%
     smaller_than_next = order_R < lead(order_R, default=999),
     out_of_order = !increment_previous & !decrement_next & !(bigger_than_previous & smaller_than_next)
   )
+
 
 
 # simple view
@@ -131,13 +142,19 @@ data %>%
     row = 1:n() - 1,
     x = Cond + (row - max(row)/2) / 8
   ) %>% 
+  mutate(flag = ifelse(duplicated, "Duplicated   ", 
+                  ifelse(out_of_order, "Out of Order   ", 
+                    ifelse(manipulated, "Manipulated (H-K)", 
+                      "As expected   ")))) %>% 
   ggplot() + 
-    aes(x=-x, y=round(SumDeduction), fill=out_of_order|duplicated) + 
-    geom_label(aes(label=participant), size=5, color="white") + 
+    aes(x=-x, y=round(SumDeduction), fill=flag) + 
+    geom_label(aes(label=participant), size=4, color="white") + 
     scale_x_continuous(breaks = c(-2, -1), limits = c(-2.5,-0.5), labels = c("Sign-Bottom", "Sign-Top")) +
-    scale_fill_brewer(palette = "Set1", guide = "none", direction = -1) +
-    theme_classic(14) + 
-    labs(x = NULL, y = "Expenses claimed ($)")
+    scale_fill_manual(values = c("#377EB8", "#666666", "#E41A1C", "#FF7F00"), 
+                      breaks = c("As expected   ", "Duplicated   ", "Out of Order   ", "Manipulated (H-K)")) +
+    guides(fill = guide_legend(override.aes = list(label = "#" ))) +
+    theme_classic(15) + theme(legend.position = "top") +
+    labs(x = NULL, y = "Expenses claimed ($)", fill = NULL, title = "order_R")
 
-ggsave(glue("{PATH}/output/steve plot.png"), width = 2200, height = 2200, units = "px")
+ggsave(glue("{PATH}/output/steve plot order_R manipulated.png"), width = 2200, height = 2200, units = "px")
 
